@@ -1,10 +1,19 @@
+require('dotenv').config() // Enable dotenv
 const express = require('express')
 const app = express()
+const Person = require('./models/person') // Require MongoDB model
 
+// Enable middleware that gets the JSON of body of requests in request.body
 app.use(express.json())
 
+// Enable cors so that the frontend can make connections from a different host
+const cors = require('cors')
+app.use(cors())
+
+// Serve the frontend from the build directory
 app.use(express.static('build'))
 
+// Enable logging of requests to the console with morgan
 let morgan = require('morgan')
 morgan.token('body', function (req, res) {
   const stringBody = JSON.stringify(req.body)
@@ -15,60 +24,45 @@ morgan.token('body', function (req, res) {
 })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
 
-let persons = [
-    { 
-      "id": 1,
-      "name": "Arto Hellas", 
-      "number": "040-123456"
-    },
-    { 
-      "id": 2,
-      "name": "Ada Lovelace", 
-      "number": "39-44-5323523"
-    },
-    { 
-      "id": 3,
-      "name": "Dan Abramov", 
-      "number": "12-43-234345"
-    },
-    { 
-      "id": 4,
-      "name": "Mary Poppendieck", 
-      "number": "39-23-6423122"
-    }
-]
 
-app.get('/info', (request, response) => {
+app.get('/info', (request, response, next) => {
   const date = new Date()
-  response.send(
-    `<p>Phonebook has info for ${persons.length} people</p><p>${date}</p>`
-  )
+  Person.countDocuments({})
+    .then((count) => {
+      response.send(
+        `<p>Phonebook has info for ${count} people</p><p>${date}</p>`
+      )
+    })
+    .catch(error => next(error))
 })
 
-app.get('/api/persons', (request, response) => {
-  response.json(persons)
+app.get('/api/persons', (request, response, next) => {
+  Person.find({})
+    .then(result => {
+      response.json(result)
+    })
+    .catch(error => next(error))
 })
 
 app.get('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  const person = persons.find(p => p.id === id)
-  if(person) {
-    response.json(person)
-  } else {
-    response.status(404).end()
-  }
+  Person.findById(request.params.id)
+    .then(person => {
+      if(person) {
+        response.json(person)
+      } else {
+        response.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 })
 
 app.delete('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  persons = persons.filter(p => p.id !== id)
-
-  response.status(204).end()
+  Person.findByIdAndRemove(request.params.id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
-
-generateId = () => {
-  return Math.floor(Math.random() * 100000)
-}
 
 app.post('/api/persons', (request, response) => {
   const body = request.body
@@ -78,29 +72,53 @@ app.post('/api/persons', (request, response) => {
       error: 'name missing'
     })
   }
-
-  if(persons.find(p => p.name === body.name)) {
-    return response.status(400).json({
-      error: 'name must be unique'
-    })
-  }
-
   if(!body.number) {
     return response.status(400).json({
       error: 'number missing'
     })
   }
 
-  const newPerson = {
+  const newPerson = new Person({
     name: body.name,
     number: body.number,
-    id: generateId()
+  })
+  newPerson.save().then(savedPerson => {
+    response.json(savedPerson)
+  })
+    .catch(error => next(error))
+})
+
+app.put('/api/persons/:id', (request, response, next) => {
+  const body = request.body
+
+  const person = {
+    name: body.name,
+    number: body.number,
   }
 
-  persons = persons.concat(newPerson)
-
-  response.json(newPerson)
+  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+    .then(updatedPerson => {
+      response.json(updatedPerson)
+    })
+    .catch(error => next(error))
 })
+
+// handler of requests with unknown endpoint
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: 'unknown endpoint' })
+}
+app.use(unknownEndpoint)
+
+// error handling middleware
+const errorHandler = (error, request, response, next) => {
+  console.log(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  }
+
+  next(error)
+}
 
 const PORT=3001
 app.listen(PORT, () => {
