@@ -7,6 +7,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint .",
     "build:ui": "rm -r build && cd ../fullstackopen/part2/phonebook && npm run build && cp -r build ../../../fullstackopen-phonebook-backend",
     "deploy:full": "npm run build:ui && git add . && git commit -m uibuild && git push"
   },
@@ -19,5 +20,8 @@
     "mongoose": "^7.4.0",
     "morgan": "^1.10.0",
     "nodemon": "^3.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.45.0"
   }
 }

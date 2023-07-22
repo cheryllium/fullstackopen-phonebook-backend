@@ -15,10 +15,10 @@ app.use(express.static('build'))
 
 // Enable logging of requests to the console with morgan
 let morgan = require('morgan')
-morgan.token('body', function (req, res) {
+morgan.token('body', function (req) {
   const stringBody = JSON.stringify(req.body)
-  if(stringBody === "{}") {
-    return " "
+  if(stringBody === '{}') {
+    return ' '
   }
   return stringBody
 })
@@ -44,7 +44,7 @@ app.get('/api/persons', (request, response, next) => {
     .catch(error => next(error))
 })
 
-app.get('/api/persons/:id', (request, response) => {
+app.get('/api/persons/:id', (request, response, next) => {
   Person.findById(request.params.id)
     .then(person => {
       if(person) {
@@ -56,9 +56,9 @@ app.get('/api/persons/:id', (request, response) => {
     .catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (request, response) => {
+app.delete('/api/persons/:id', (request, response, next) => {
   Person.findByIdAndRemove(request.params.id)
-    .then(result => {
+    .then(() => {
       response.status(204).end()
     })
     .catch(error => next(error))
